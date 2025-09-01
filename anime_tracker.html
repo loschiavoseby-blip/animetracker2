@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Anime Tracker Avanzato</title>
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #121212;
+    color: #f1f1f1;
+    padding: 20px;
+}
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 2.5rem;
+    color: #ae00ff;
+    text-shadow: 0 0 12px rgba(183, 0, 255, 0.7);
+}
+form {
+    background: #1e1e2f;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    max-width: 900px;
+    margin: 0 auto 30px auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+form button {
+    grid-column: span 2;
+}
+form input, select, form button, textarea {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background: #2a2a3d;
+    color: #f1f1f1;
+    font-size: 0.95rem;
+}
+form button {
+    background: #ae00ff;
+    color: #1e1e2f;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+form button:hover {
+    background: #c945f1;
+}
+.filters {
+    max-width: 900px;
+    margin: 0 auto 30px auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.filters input, .filters select {
+    flex: 1;
+    min-width: 180px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background: #1e1e2f;
+    color: #f1f1f1;
+}
+.anime-list {
+    max-width: 1000px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+.anime-card {
+    display: flex;
+    justify-content: space-between;
+    background: #1e1e2f;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    flex-direction: row;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeIn 0.5s forwards;
+    transition: transform 0.3s ease;
+}
+.anime-card:hover {
+    transform: translateY(-5px);
+}
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.anime-card-content {
+    padding: 15px;
+    flex: 1;
+}
+.anime-card-content h2 {
+    color: #ae00ff;
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+}
+.anime-card-content p {
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: #ddd;
+}
+.rating {
+    font-weight: bold;
+    color: #ae00ff;
+}
+.actions {
+    margin-top: 10px;
+}
+.actions button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    margin-right: 6px;
+}
+.edit-btn {
+    background: #ff9800;
+    color: white;
+}
+.delete-btn {
+    background: #e74c3c;
+    color: white;
+}
+.anime-card img {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+    border-left: 1px solid #333;
+}
+@media(max-width:700px){
+    .anime-card { flex-direction: column; }
+    .anime-card img { width: 100%; height: 300px; border-left:none; border-top:1px solid #333; }
+}
+</style>
+</head>
+<body>
+
+<h1>📺 Anime Tracker</h1>
+
+<form id="animeForm">
+    <input type="text" id="name" placeholder="Nome Anime" required>
+    <input type="number" id="season" placeholder="Stagione" min="1">
+    <input type="number" id="episode" placeholder="Episodio" min="1">
+    <input type="number" id="minute" placeholder="Minuto" min="0">
+    <input type="text" id="progress" placeholder="A che episodio/minuto sei arrivato">
+    <input type="date" id="watchDate" placeholder="Data in cui l'hai visto">
+    <input type="number" id="rating" placeholder="Valutazione (1-10)" min="1" max="10">
+    <select id="status">
+        <option value="In corso">In corso</option>
+        <option value="Completato">Completato</option>
+        <option value="Da iniziare">Da iniziare</option>
+    </select>
+    <textarea id="note" placeholder="Nota personale..." rows="2"></textarea>
+    <button type="submit">➕ Aggiungi Anime</button>
+</form>
+
+<div class="filters">
+    <input type="text" id="search" placeholder="🔍 Cerca per nome...">
+    <select id="filterStatus">
+        <option value="">Tutti gli stati</option>
+        <option value="In corso">In corso</option>
+        <option value="Completato">Completato</option>
+        <option value="Da iniziare">Da iniziare</option>
+    </select>
+    <select id="filterRating">
+        <option value="">Tutte le valutazioni</option>
+        <option value="5">≥ 5</option>
+        <option value="7">≥ 7</option>
+        <option value="8">≥ 8</option>
+        <option value="9">≥ 9</option>
+    </select>
+</div>
+
+<div class="anime-list" id="animeList"></div>
+
+<script>
+const form = document.getElementById('animeForm');
+const animeList = document.getElementById('animeList');
+const search = document.getElementById('search');
+const filterStatus = document.getElementById('filterStatus');
+const filterRating = document.getElementById('filterRating');
+let animes = JSON.parse(localStorage.getItem('animes')) || [];
+
+function saveAnimes() {
+    localStorage.setItem('animes', JSON.stringify(animes));
+}
+
+async function fetchAnimeFull(name) {
+    try {
+        const searchRes = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(name)}&limit=1`);
+        const searchData = await searchRes.json();
+        if(searchData.data && searchData.data.length>0){
+            const anime = searchData.data[0];
+            const id = anime.mal_id;
+            const fullRes = await fetch(`https://api.jikan.moe/v4/anime/${id}/full`);
+            const fullData = await fullRes.json();
+            const animeFull = fullData.data;
+            const relations = [];
+            if(animeFull.relations){
+                animeFull.relations.forEach(r=>{
+                    relations.push(`${r.relation}: ${r.entry.map(e=>e.name).join(", ")}`);
+                });
+            }
+            return {
+                image: animeFull.images.jpg.large_image_url,
+                releaseDate: animeFull.aired.from ? animeFull.aired.from.split("T")[0] : "Sconosciuta",
+                extra: relations.join(" | ") || "Nessuno"
+            };
+        }
+    } catch(err){ console.error("Errore API Jikan:", err);}
+    return { image:"", releaseDate:"Sconosciuta", extra:"Nessuno" };
+}
+
+function renderAnimes() {
+    animeList.innerHTML='';
+    const searchTerm = search.value.toLowerCase();
+    const statusFilter = filterStatus.value;
+    const ratingFilter = parseInt(filterRating.value) || 0;
+    animes
+    .filter(a=>a.name.toLowerCase().includes(searchTerm))
+    .filter(a=>!statusFilter || a.status===statusFilter)
+    .filter(a=>!ratingFilter || a.rating>=ratingFilter)
+    .forEach((anime,index)=>{
+        const card = document.createElement('div');
+        card.className='anime-card';
+        card.innerHTML=`
+        <div class="anime-card-content">
+            <h2>${anime.name}</h2>
+            <p><b>Data di uscita:</b> ${anime.releaseDate}</p>
+            <p><b>Arrivato a:</b> Stagione ${anime.season || '-'} Episodio ${anime.episode || '-'} Minuto ${anime.minute || '-'}</p>
+            <p><b>Extra:</b> ${anime.extra || "Nessuno"}</p>
+            <p><b>Data vista:</b> ${anime.watchDate || '-'}</p>
+            <p><b>Nota personale:</b> ${anime.note || '-'}</p>
+            <p class="rating"><b>Valutazione:</b> ⭐ ${anime.rating}/10</p>
+            <p><b>Status:</b> ${anime.status}</p>
+            <div class="actions">
+                <button class="edit-btn" onclick="editAnime(${index})">✏️ Modifica</button>
+                <button class="delete-btn" onclick="deleteAnime(${index})">🗑️ Elimina</button>
+            </div>
+        </div>
+        ${anime.image ? `<img src="${anime.image}" alt="${anime.name}">` : ""}
+        `;
+        animeList.appendChild(card);
+    });
+}
+
+form.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const name = document.getElementById('name').value;
+    const season = document.getElementById('season').value;
+    const episode = document.getElementById('episode').value;
+    const minute = document.getElementById('minute').value;
+    const progress = document.getElementById('progress').value;
+    const rating = document.getElementById('rating').value;
+    const status = document.getElementById('status').value;
+    const note = document.getElementById('note').value;
+    const watchDate = document.getElementById('watchDate').value;
+    const apiData = await fetchAnimeFull(name);
+    const anime = {
+        name,
+        season,
+        episode,
+        minute,
+        progress,
+        rating,
+        status,
+        note,
+        watchDate,
+        releaseDate: apiData.releaseDate,
+        extra: apiData.extra,
+        image: apiData.image
+    };
+    animes.push(anime);
+    saveAnimes();
+    renderAnimes();
+    form.reset();
+});
+
+function deleteAnime(index){
+    if(confirm('Vuoi davvero eliminare questo anime?')){
+        animes.splice(index,1);
+        saveAnimes();
+        renderAnimes();
+    }
+}
+
+function editAnime(index){
+    const anime = animes[index];
+    document.getElementById('name').value = anime.name;
+    document.getElementById('season').value = anime.season;
+    document.getElementById('episode').value = anime.episode;
+    document.getElementById('minute').value = anime.minute;
+    document.getElementById('progress').value = anime.progress;
+    document.getElementById('rating').value = anime.rating;
+    document.getElementById('status').value = anime.status;
+    document.getElementById('note').value = anime.note;
+    document.getElementById('watchDate').value = anime.watchDate;
+    animes.splice(index,1);
+    saveAnimes();
+    renderAnimes();
+}
+
+search.addEventListener('input',renderAnimes);
+filterStatus.addEventListener('change',renderAnimes);
+filterRating.addEventListener('change',renderAnimes);
+
+renderAnimes();
+</script>
+
+</body>
+</html>
